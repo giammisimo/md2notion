@@ -6,8 +6,8 @@ from notion.block import CodeBlock, DividerBlock, HeaderBlock, SubheaderBlock, \
     SubsubheaderBlock, QuoteBlock, TextBlock, NumberedListBlock, \
     BulletedListBlock, ImageBlock, CollectionViewBlock, TodoBlock, EquationBlock
 from mistletoe.base_renderer import BaseRenderer
-from mistletoe.block_token import HTMLBlock, CodeFence
-from mistletoe.span_token import Image, Link, HTMLSpan, SpanToken
+from mistletoe.block_token import HTMLBlock, CodeFence, BlockToken
+from mistletoe.span_token import Image, Link, HTMLSpan, SpanToken, tokenize_inner
 from html.parser import HTMLParser
 
 def flatten(l):
@@ -444,10 +444,27 @@ class BlockEquation(SpanToken):
     def find(cls, string):
         return cls.pattern.finditer(string)
 
-class CustomImageBlock(SpanToken):
-    pattern = re.compile(r"!\[\[([a-zA-Z0-9\-._ \/]+)\]\]")
-    parse_group = 1
+## Adapted from mistletoe.block_tokens.Heading
+class CustomImageBlock(BlockToken):
+    pattern = re.compile(r' {0,3}!\[\[([a-zA-Z0-9\-._ \/]+)\]\]')
+    content = ''
+
+    def __init__(self, match):
+        super().__init__(match, tokenize_inner)
 
     @classmethod
-    def find(cls, string):
-        return cls.pattern.finditer(string)
+    def start(cls, line):
+        match_obj = cls.pattern.match(line)
+        if match_obj is None:
+            return False
+        cls.content = (match_obj.group(1) or '').strip()
+        return True
+
+    @classmethod
+    def check_interrupts_paragraph(cls, lines):
+        return cls.start(lines.peek())
+
+    @classmethod
+    def read(cls, lines):
+        next(lines)
+        return cls.content
