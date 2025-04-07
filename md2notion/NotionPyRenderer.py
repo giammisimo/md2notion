@@ -34,7 +34,7 @@ def addLatexExtension(notionPyRendererCls):
     $$equation$$ is parsed as an equation block.
     """
     def newNotionPyRendererCls(*extraExtensions):
-        new_extension = [BlockEquation, InlineEquation]
+        new_extension = [BlockEquation, InlineEquation, CustomImageBlock]
         return notionPyRendererCls(*chain(new_extension, extraExtensions))
     return newNotionPyRendererCls
 
@@ -60,7 +60,7 @@ class NotionPyRenderer(BaseRenderer):
         Takes a single Markdown token and renders it down to
         NotionPy classes. Note that all the recursion is handled in the delegated
         methods.
-        Overrides super().render but still uses render_map and then just
+        Overrides super().render butrender_block_equation still uses render_map and then just
         does special parsing for stuff
         """
         return self.render_map[token.__class__.__name__](token)
@@ -412,30 +412,42 @@ class NotionPyRenderer(BaseRenderer):
 
     def render_block_equation(self, token):
         def blockFunc(blockStr):
-            #print('BLOCK EQUATION', blockStr)
             return {
                 'type': EquationBlock,
                 'title_plaintext': blockStr#.replace('\\', '\\\\')
             }
         return self.renderMultipleToStringAndCombine(token.children, blockFunc)
 
+    def render_custom_image_block(self, token):
+        def blockFunc(blockStr):
+            return {
+            'type': ImageBlock,
+            'display_source': blockStr,
+            'source': blockStr,
+        }
+        return self.renderMultipleToStringAndCombine(token.children, blockFunc)
+
     def render_inline_equation(self, token):
-        #print('INLINE EQUATION',token.children)
         return self.renderMultipleToStringAndCombine(token.children, lambda s: f"$${s}$$")
 
 
-## Still misses some inline formulas in indented bullet blocks
 class InlineEquation(SpanToken):
     pattern = re.compile(r"(?<!\\|\$)(?:\\\\)*(\$)(?!\$)(.+?)(?<!\$)\1(?!\$)", re.DOTALL)
     parse_inner = True
     parse_group = 2
 
-## Misses some blocks, some with 
 class BlockEquation(SpanToken):
     pattern = re.compile(r"( {0,3})((?:\$){2}) *(.*?)((?:\$){2})",re.DOTALL)
     parse_group = 3
 
     @classmethod
     def find(cls, string):
-        #print('TEST',string)
+        return cls.pattern.finditer(string)
+
+class CustomImageBlock(SpanToken):
+    pattern = re.compile(r"!\[\[([a-zA-Z0-9\-._ \/]+)\]\]")
+    parse_group = 1
+
+    @classmethod
+    def find(cls, string):
         return cls.pattern.finditer(string)
