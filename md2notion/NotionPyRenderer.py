@@ -7,7 +7,7 @@ from notion.block import CodeBlock, DividerBlock, HeaderBlock, SubheaderBlock, \
     BulletedListBlock, ImageBlock, CollectionViewBlock, TodoBlock, EquationBlock
 from mistletoe.base_renderer import BaseRenderer
 from mistletoe.block_token import HTMLBlock, CodeFence, BlockToken
-from mistletoe.span_token import Image, Link, HTMLSpan, SpanToken, tokenize_inner, RawText
+from mistletoe.span_token import HTMLSpan, SpanToken, tokenize_inner, RawText, Emphasis
 from html.parser import HTMLParser
 
 def flatten(l):
@@ -428,7 +428,15 @@ class NotionPyRenderer(BaseRenderer):
         return self.renderMultipleToStringAndCombine(token.children, blockFunc)
 
     def render_inline_equation(self, token):
-        return self.renderMultipleToStringAndCombine(token.children, lambda s: f"$${s}$$")
+        ## Remove emphasis - fix for underscores
+        new_children = list()
+        for child in token.children:
+            if type(child) == Emphasis:
+                new_child = RawText(child.delimiter + child.children[0].content + child.delimiter)
+                new_children.append(new_child)
+            else:
+                new_children.append(child)
+        return self.renderMultipleToStringAndCombine(new_children, lambda s: f"$${s}$$")
 
 
 class InlineEquation(SpanToken):
