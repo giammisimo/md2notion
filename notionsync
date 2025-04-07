@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+import os.path
+import argparse
+import sys
+from pathlib import Path
+from notion.client import NotionClient
+from notion.block import PageBlock
+from md2notion.upload import upload, filesFromPathsUrls
+from md2notion.NotionPyRenderer import NotionPyRenderer, addLatexExtension
+import json
+
+parser = argparse.ArgumentParser(prog='notionsync',
+                                description='Uploads Markdown files to Notion.so\nThe configuration file is placed at ~/.notion_conf.json')
+parser.add_argument('page_url', type=str,
+                    help='Url (or name if configured) of the Notion.so page you want to upload your Markdown files to')
+parser.add_argument('md_file', type=str, nargs='+',
+                    help='Path to the Markdown file you want to upload')
+
+args = parser.parse_args(sys.argv[1:])
+conf_path = os.path.join(Path.home(),'.notion_conf.json')
+config = None
+try:
+    with open(conf_path,'r') as file:
+        config = file.read()
+except:
+    raise FileNotFoundError(f'Configuration file {conf_path} not found!')
+config = json.loads(config)
+
+notionPyRendererCls = addLatexExtension(NotionPyRenderer)
+
+client = NotionClient(token_v2=config['token_v2'])
+if args.page_url in config['pages']:
+    page = client.get_block(config['pages'][args.page_url])
+else:
+    page = client.get_block(args.page_url)
+uploadPage = page
+
+for mdPath, mdFileName, mdFile in filesFromPathsUrls(args.md_file):
+    pageTitle = '.'.join(mdFileName.split('.')[:-1])
+    uploadPage = page.children.add_new(PageBlock, title=pageTitle)
+    print(f"Uploading {mdPath}...")
+    upload(mdFile, uploadPage, None, notionPyRendererCls)
