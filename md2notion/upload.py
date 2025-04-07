@@ -10,7 +10,7 @@ from urllib.parse import unquote, urlparse, ParseResult
 import mistletoe
 from notion.block import EmbedOrUploadBlock, CollectionViewBlock, PageBlock
 from notion.client import NotionClient
-from .NotionPyRenderer import NotionPyRenderer, addHtmlImgTagExtension, addLatexExtension
+from .NotionPyRenderer import NotionPyRenderer, addHtmlImgTagExtension, addLatexExtension, custom_preprocessing
 
 
 def relativePathForMarkdownUrl(url, mdFilePath):
@@ -111,16 +111,24 @@ def uploadBlock(blockDescriptor, blockParent, mdFilePath, imagePathFunc=None):
             uploadBlock(childBlock, newBlock, mdFilePath, imagePathFunc)
 
 
-def convert(mdFile, notionPyRendererCls=NotionPyRenderer):
+def convert(mdFile, notionPyRendererCls=NotionPyRenderer, preprocessing=None):
     """
     Converts a mdFile into an array of NotionBlock descriptors
     @param {file|string} mdFile The file handle to a markdown file, or a markdown string
     @param {NotionPyRenderer} notionPyRendererCls Class inheritting from the renderer
     incase you want to render the Markdown => Notion.so differently
+    @param {function} preprocessing Function that does preprocessing on the contents before parsing
     """
-    return mistletoe.markdown(mdFile, notionPyRendererCls)
+    if preprocessing is not None:
+        if type(mdFile) == str:
+            text = mdFile
+        else:
+            text = mdFile.read()
+        return mistletoe.markdown(preprocessing(text), notionPyRendererCls)
+    else:
+        return mistletoe.markdown(mdFile, notionPyRendererCls)
 
-def upload(mdFile, notionPage, imagePathFunc=None, notionPyRendererCls=NotionPyRenderer):
+def upload(mdFile, notionPage, imagePathFunc=None, notionPyRendererCls=NotionPyRenderer, *args):
     """
     Uploads a single markdown file at mdFilePath to Notion.so as a child of
     notionPage.
@@ -133,7 +141,7 @@ def upload(mdFile, notionPage, imagePathFunc=None, notionPyRendererCls=NotionPyR
     incase you want to render the Markdown => Notion.so differently
     """
     # Convert the Markdown file
-    rendered = convert(mdFile, notionPyRendererCls)
+    rendered = convert(mdFile, notionPyRendererCls, *args)
 
     # Upload all the blocks
     for idx, blockDescriptor in enumerate(rendered):
@@ -209,7 +217,7 @@ def cli(argv):
             # Make the new page in Notion.so
             uploadPage = page.children.add_new(PageBlock, title=mdFileName)
         print(f"Uploading {mdPath} to Notion.so at page {uploadPage.title}...")
-        upload(mdFile, uploadPage, None, notionPyRendererCls)
+        upload(mdFile, uploadPage, None, notionPyRendererCls, custom_preprocessing)
 
 
 if __name__ == "__main__":

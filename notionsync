@@ -6,7 +6,7 @@ from pathlib import Path
 from notion.client import NotionClient
 from notion.block import PageBlock
 from md2notion.upload import upload, filesFromPathsUrls
-from md2notion.NotionPyRenderer import NotionPyRenderer, addLatexExtension
+from md2notion.NotionPyRenderer import NotionPyRenderer, addLatexExtension, custom_preprocessing
 import json
 
 parser = argparse.ArgumentParser(prog='notionsync',
@@ -39,4 +39,4 @@ for mdPath, mdFileName, mdFile in filesFromPathsUrls(args.md_file):
     pageTitle = '.'.join(mdFileName.split('.')[:-1])
     uploadPage = page.children.add_new(PageBlock, title=pageTitle)
     print(f"Uploading {mdPath}...")
-    upload(mdFile, uploadPage, None, notionPyRendererCls)
+    upload(mdFile, uploadPage, None, notionPyRendererCls,custom_preprocessing)

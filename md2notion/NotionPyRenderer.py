@@ -7,7 +7,7 @@ from notion.block import CodeBlock, DividerBlock, HeaderBlock, SubheaderBlock, \
     BulletedListBlock, ImageBlock, CollectionViewBlock, TodoBlock, EquationBlock
 from mistletoe.base_renderer import BaseRenderer
 from mistletoe.block_token import HTMLBlock, CodeFence, BlockToken
-from mistletoe.span_token import Image, Link, HTMLSpan, SpanToken, tokenize_inner
+from mistletoe.span_token import Image, Link, HTMLSpan, SpanToken, tokenize_inner, RawText
 from html.parser import HTMLParser
 
 def flatten(l):
@@ -436,14 +436,6 @@ class InlineEquation(SpanToken):
     parse_inner = True
     parse_group = 2
 
-class BlockEquation(SpanToken):
-    pattern = re.compile(r"( {0,3})((?:\$){2}) *(.*?)((?:\$){2})",re.DOTALL)
-    parse_group = 3
-
-    @classmethod
-    def find(cls, string):
-        return cls.pattern.finditer(string)
-
 ## Adapted from mistletoe.block_tokens.Heading
 class CustomImageBlock(BlockToken):
     pattern = re.compile(r' {0,3}!\[\[([a-zA-Z0-9\-._ \/]+)\]\]')
@@ -468,3 +460,42 @@ class CustomImageBlock(BlockToken):
     def read(cls, lines):
         next(lines)
         return cls.content
+
+## Adapted from mistletoe.block_tokens.HtmlBlock
+class BlockEquation(BlockToken):
+    pattern = re.compile(r" {0,3}\$\$")
+
+    def __init__(self, lines):
+        self.children = (RawText(''.join(lines).rstrip('\n')),)
+
+    @property
+    def content(self):
+        return self.children[0].content
+
+    @classmethod
+    def start(cls, line):
+        stripped = line.lstrip()
+        match_obj = cls.pattern.match(stripped)
+        return match_obj is not None
+
+    @classmethod
+    def check_interrupts_paragraph(cls, lines):
+        return cls.start(lines.peek())
+    
+    @classmethod
+    def read(cls, lines):
+        # note: stop condition can trigger on the starting line
+        line_buffer = []
+        lines.set_pos(lines.get_pos() + 1) # discard delimiter
+        for line in lines:
+            if '$$' in line.casefold():
+                break
+            line_buffer.append(line)
+        return line_buffer
+    
+def custom_preprocessing(text: str) -> str:
+    # Images
+    text = re.sub(r'(\n)?(!\[\[[a-zA-Z0-9\-._ \/]+\]\])(\n)?',r'\n\g<2>\n',text)
+    # Math blocks
+    text = re.sub(r'(\n)?(\$\$)(\n)?',r'\n\g<2>\n',text)
+    return text
