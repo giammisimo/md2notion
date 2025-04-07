@@ -412,21 +412,30 @@ class NotionPyRenderer(BaseRenderer):
 
     def render_block_equation(self, token):
         def blockFunc(blockStr):
+            #print('BLOCK EQUATION', blockStr)
             return {
                 'type': EquationBlock,
-                'title_plaintext': blockStr.replace('\\', '\\\\')
+                'title_plaintext': blockStr#.replace('\\', '\\\\')
             }
         return self.renderMultipleToStringAndCombine(token.children, blockFunc)
 
     def render_inline_equation(self, token):
+        #print('INLINE EQUATION',token.children)
         return self.renderMultipleToStringAndCombine(token.children, lambda s: f"$${s}$$")
 
 
+## Still misses some inline formulas in indented bullet blocks
 class InlineEquation(SpanToken):
-    pattern = re.compile(r"(?<!\\|\$)(?:\\\\)*(\$+)(?!\$)(.+?)(?<!\$)\1(?!\$)", re.DOTALL)
+    pattern = re.compile(r"(?<!\\|\$)(?:\\\\)*(\$)(?!\$)(.+?)(?<!\$)\1(?!\$)", re.DOTALL)
     parse_inner = True
     parse_group = 2
 
+## Misses some blocks, some with 
+class BlockEquation(SpanToken):
+    pattern = re.compile(r"( {0,3})((?:\$){2}) *(.*?)((?:\$){2})",re.DOTALL)
+    parse_group = 3
 
-class BlockEquation(CodeFence):
-    pattern = re.compile(r'( {0,3})((?:\$){2,}) *(\S*)')
+    @classmethod
+    def find(cls, string):
+        #print('TEST',string)
+        return cls.pattern.finditer(string)
