@@ -1,6 +1,8 @@
-### This package is package is no longer maintained. I stopped using Notion.so some time ago and switched to Obsidian due to persistant problems with then Notion API.
+This fork adds some customizations to the original `Cobertos/md2notion` in order to better handle Obsidian markdown files.
+It is fine-tuned to my personal markdown style for Obsidian, which may not be standard or compatible with all markdown files.
 
 ---
+### Original README
 
 <p align="center">
     <a href="https://github.com/Cobertos/md2notion/actions" target="_blank"><img alt="build status" src="https://github.com/Cobertos/md2notion/workflows/Package%20Tests/badge.svg"></a>
